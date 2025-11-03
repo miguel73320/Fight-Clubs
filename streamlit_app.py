@@ -105,7 +105,25 @@ def get_player_stats(day_filter, player):
             return stats
     return None
 
-# ========= APP (Interfaz Rediseñada) ========= #
+@st.cache_data(ttl=300)
+def get_all_time_winners():
+    conn = get_conn()
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT dia, usuario
+        FROM resultados 
+        WHERE ranking = 1 
+        ORDER BY dia DESC
+    """)
+    rows = cursor.fetchall()
+    conn.close()
+    if rows:
+        df = pd.DataFrame(rows, columns=["Día", "Ganador"])
+        return df
+    return pd.DataFrame(columns=["Día", "Ganador"])
+
+# ========= APP (Interfaz Rediseñada con Pestañas) ========= #
 
 st.title("⚔️ fIGth club: fight or unfollow")
 
@@ -114,101 +132,125 @@ if not available_dates or len(available_dates) <= 1:
     st.error("No hay datos en la base de datos. Ejecuta la simulación 'juego.py' al menos una vez.")
     st.stop()
 
-# --- Cargar lista de jugadores --- # <-- CÓDIGO AÑADIDO 2 -->
 all_players = get_all_players()
 if not all_players:
     st.error("No se han encontrado jugadores en la base de datos.")
     st.stop()
 
-# --- BARRA LATERAL (Sidebar) --- # <-- CÓDIGO MODIFICADO 3 -->
-st.sidebar.header("Buscar Jugador")
-
-# Definimos un 'placeholder' para el selectbox
+# --- BARRA LATERAL (Sidebar) ---
+# Definimos las etiquetas aquí para usarlas en varios lugares
+all_time_label = "Historial Completo"
 placeholder_label = "Escribe o selecciona tu nombre..."
-player_list_with_placeholder = [placeholder_label] + all_players
 
-# Reemplazamos st.text_input por st.selectbox
+st.sidebar.header("Filtros de Búsqueda")
+
+# Filtro de Fecha (controla ambas pestañas)
+available_dates_with_all_time = [all_time_label] + [f"Día {d}" for d in available_dates if d != "All Time"]
+selected_day_filter = st.sidebar.selectbox(
+    "Seleccionar Fecha:", 
+    available_dates_with_all_time
+)
+
+# Filtro de Jugador (para la pestaña de Stats)
+player_list_with_placeholder = [placeholder_label] + all_players
 username_input = st.sidebar.selectbox(
-    "Ingresa tu nombre de usuario:", 
+    "Buscar Jugador:", 
     player_list_with_placeholder
 )
 
-all_time_label = "Historial Completo"
-available_dates_with_all_time = [all_time_label] + [f"Día {d}" for d in available_dates if d != "All Time"]
-selected_day_filter = st.sidebar.selectbox("Filtrar por Día:", available_dates_with_all_time)
+# (NUEVO) Filtro de Estadísticas del Leaderboard
+st.sidebar.markdown("---")
+st.sidebar.subheader("Ver Leaderboard por:")
+stat_to_show = st.sidebar.radio(
+    "Estadística del Leaderboard:", 
+    ("Kills", "Ganadores"), 
+    label_visibility="collapsed"
+)
 
-# --- LÓGICA DE BÚSQUEDA DE JUGADOR --- # <-- CÓDIGO MODIFICADO 4 -->
-if username_input and username_input != placeholder_label:
-    username = username_input # .strip() ya no es necesario
-    st.header(f"📊 Estadísticas para [{username}]({TIKTOK_PROFILE_URL}{username})")
-    
-    # Obtenemos el día seleccionado y lo "traducimos" para la BD
-    day_to_query = selected_day_filter # Ej: "Historial Completo" o "Día 5"
-    
-    if selected_day_filter == all_time_label:
-        day_to_query = "All Time" # Traducimos al valor que espera la BD
-    elif "Día " in selected_day_filter:
-        day_to_query = int(selected_day_filter.replace("Día ", ""))
-    
-    stats = get_player_stats(day_to_query, username)
-    
-    if not stats:
-        st.warning(f"No se encontraron estadísticas para **{username}** en **{selected_day_filter}**.")
-    else:
-        # Mostramos las estadísticas encontradas
-        cols_metrics = st.columns(3)
-        if day_to_query == "All Time":
-            cols_metrics[0].metric("🏆 Victorias Totales", stats.get("total_wins", 0))
-            cols_metrics[1].metric("🔪 Kills Totales", stats.get("total_kills", 0))
-            cols_metrics[2].metric("☠️ Muertes Totales", stats.get("total_deaths", 0))
-        else:
-            rank = stats.get("ranking")
-            rank_display = "1º 👑" if rank == 1 else str(rank)
-            cols_metrics[0].metric("📊 Ranking", rank_display)
-            cols_metrics[1].metric("🔪 Kills", stats.get("kills", 0))
-            cols_metrics[2].metric("⏱️ Tiempo", f"{stats.get('tiempo_s', 0):.2f} s")
-            if rank != 1 and stats.get("nemesis"):
-                nemesis = stats["nemesis"]
-                if nemesis and nemesis not in ["Nadie", "GANADOR"]:
-                    st.markdown(f"**Te eliminó:** [{nemesis}]({TIKTOK_PROFILE_URL}{nemesis})")
-                   
+# --- LÓGICA DE TRADUCCIÓN DE FECHA ---
+# Hacemos la "traducción" de la fecha una sola vez
+day_to_query = "All Time"
+if selected_day_filter == all_time_label:
+    day_to_query = "All Time"
+elif "Día " in selected_day_filter:
+    day_to_query = int(selected_day_filter.replace("Día ", ""))
 
-# --- PÁGINA PRINCIPAL (Leaderboard del Último Día) ---
-else:
-    # Si no se está buscando un jugador, muestra el leaderboard
-    st.markdown("---")
-    
-    # Obtiene el día más reciente (el primero en la lista después de "All Time")
-    last_day = available_dates[1] 
-    summary = get_daily_summary(last_day)
-    
-    st.header(f"🏆 Clasificación: Última Batalla (Día {last_day})")
-    
-    cols_summary = st.columns(2)
-    cols_summary[0].metric("Jugadores Totales", summary['num_players'])
-    cols_summary[1].metric("Ganador del Día", summary['winner'])
-    
-    st.subheader("Mejores Kills de la Partida")
-    top_kills_df = get_top_players(last_day, "kills", limit=20)
-    if not top_kills_df.empty:
-        st.dataframe(top_kills_df, use_container_width=True, hide_index=True)
-    else:
-        st.write("No hay datos de kills para este día.")
 
-    with st.expander("Ver clasificación de otros días"):
-        # Usamos la misma lista 'pretty' que el sidebar para consistencia
-        selected_leaderboard_day = st.selectbox("Selecciona un Día para la Clasificación", available_dates_with_all_time)
+# --- PESTAÑAS PRINCIPALES ---
+tab_leaderboard, tab_stats = st.tabs(["🏆 Leaderboard", "📊 Estadísticas de Jugador"])
+
+# --- Pestaña 1: Leaderboard ---
+with tab_leaderboard:
+    st.header(f"Leaderboard: {selected_day_filter}")
+    
+    # Lógica para mostrar KILLS
+    if stat_to_show == "Kills":
+        st.subheader("Top 10 - Kills")
+        # Usamos day_to_query (que ya está "traducido")
+        top_kills_df = get_top_players(day_to_query, "kills", limit=10)
         
-        if selected_leaderboard_day:
-            # "Traducimos" la selección para la BD
-            day_to_query = selected_leaderboard_day
-            if selected_leaderboard_day == all_time_label:
-                day_to_query = "All Time"
-            elif "Día " in selected_leaderboard_day:
-                day_to_query = int(selected_leaderboard_day.replace("Día ", ""))
-            
-            # Mostramos el subheader con el nombre "bonito"
-            st.subheader(f"Clasificación por Kills ({selected_leaderboard_day})")
-            top_df = get_top_players(day_to_query, "kills", limit=20)
-            st.dataframe(top_df, use_container_width=True, hide_index=True)
+        if not top_kills_df.empty:
+            st.dataframe(top_kills_df, use_container_width=True, hide_index=True)
+        else:
+            st.info(f"No hay datos de Kills para {selected_day_filter}.")
 
+    # Lógica para mostrar GANADORES
+    elif stat_to_show == "Ganadores":
+        st.subheader("Ganadores")
+        
+        # Si es "All Time", mostramos la tabla de ganadores por día
+        if day_to_query == "All Time":
+            winners_df = get_all_time_winners()
+            if not winners_df.empty:
+                st.dataframe(winners_df, use_container_width=True, hide_index=True)
+            else:
+                st.info("No hay ganadores registrados.")
+        
+        # Si es un día específico, mostramos la métrica del ganador
+        else:
+            summary = get_daily_summary(day_to_query)
+            winner_name = summary.get('winner', 'N/A')
+            if winner_name != 'N/A':
+                st.metric(f"Ganador del Día {day_to_query}", winner_name, "👑")
+            else:
+                st.warning(f"No se encontró un ganador para el Día {day_to_query}.")
+
+# --- Pestaña 2: Estadísticas de Jugador ---
+with tab_stats:
+    # Verificamos si se seleccionó un jugador en la barra lateral
+    if username_input and username_input != placeholder_label:
+        username = username_input
+        st.header(f"Estadísticas para [{username}]({TIKTOK_PROFILE_URL}{username})")
+        st.subheader(f"Filtro: {selected_day_filter}")
+        
+        # Usamos day_to_query (que ya está "traducido")
+        stats = get_player_stats(day_to_query, username)
+        
+        if not stats:
+            st.warning(f"No se encontraron estadísticas para **{username}** en **{selected_day_filter}**.")
+        else:
+            # Mostramos las estadísticas encontradas
+            cols_metrics = st.columns(3)
+            
+            # Lógica para "All Time" (Historial Completo)
+            if day_to_query == "All Time":
+                cols_metrics[0].metric("🏆 Victorias Totales", stats.get("total_wins", 0))
+                cols_metrics[1].metric("🔪 Kills Totales", stats.get("total_kills", 0))
+                cols_metrics[2].metric("☠️ Muertes Totales", stats.get("total_deaths", 0))
+            
+            # Lógica para un día específico
+            else:
+                rank = stats.get("ranking")
+                rank_display = "1º 👑" if rank == 1 else str(rank)
+                cols_metrics[0].metric("📊 Ranking", rank_display)
+                cols_metrics[1].metric("🔪 Kills", stats.get("kills", 0))
+                cols_metrics[2].metric("⏱️ Tiempo", f"{stats.get('tiempo_s', 0):.2f} s")
+                
+                if rank != 1 and stats.get("nemesis"):
+                    nemesis = stats["nemesis"]
+                    if nemesis and nemesis not in ["Nadie", "GANADOR"]:
+                        st.markdown(f"**Te eliminó:** [{nemesis}]({TIKTOK_PROFILE_URL}{nemesis})")
+    
+    # Si no hay jugador seleccionado, mostramos un aviso
+    else:
+        st.info("Selecciona un jugador en la barra lateral para ver sus estadísticas.")
