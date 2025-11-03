@@ -107,7 +107,7 @@ if not available_dates or len(available_dates) <= 1:
 # --- BARRA LATERAL (Sidebar) ---
 st.sidebar.header("Buscar Jugador")
 username_input = st.sidebar.text_input("Ingresa tu nombre de usuario:")
-all_time_label = "Historial Completo"
+if day_to_query == "All Time":
 available_dates_with_all_time = [all_time_label] + [f"Día {d}" for d in available_dates if d != "All Time"]
 selected_day_filter = st.sidebar.selectbox("Filtrar por Día:", available_dates_with_all_time)
 
@@ -166,13 +166,20 @@ else:
         st.write("No hay datos de kills para este día.")
 
     with st.expander("Ver clasificación de otros días"):
-        # Permite seleccionar un día diferente para el leaderboard
-        selected_leaderboard_day = st.selectbox("Selecciona un Día para la Clasificación", available_dates)
+        # Usamos la misma lista 'pretty' que el sidebar para consistencia
+        selected_leaderboard_day = st.selectbox("Selecciona un Día para la Clasificación", available_dates_with_all_time)
+        
         if selected_leaderboard_day:
+            # "Traducimos" la selección para la BD
             day_to_query = selected_leaderboard_day
-            if "Día " in selected_leaderboard_day:
+            if selected_leaderboard_day == all_time_label:
+                day_to_query = "All Time"
+            elif "Día " in selected_leaderboard_day:
                 day_to_query = int(selected_leaderboard_day.replace("Día ", ""))
             
+            # Mostramos el subheader con el nombre "bonito"
             st.subheader(f"Clasificación por Kills ({selected_leaderboard_day})")
             top_df = get_top_players(day_to_query, "kills", limit=20)
             st.dataframe(top_df, use_container_width=True, hide_index=True)
+
+
