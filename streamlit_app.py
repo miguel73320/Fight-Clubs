@@ -115,10 +115,13 @@ if day_to_query == "All Time":
 if username_input:
     username = username_input.strip()
     st.header(f"📊 Estadísticas para [{username}]({TIKTOK_PROFILE_URL}{username})")
+
+    # Obtenemos el día seleccionado y lo "traducimos" para la BD
+    day_to_query = selected_day_filter # Ej: "Historial Completo" o "Día 5"
     
-    # Obtenemos el día seleccionado (o "All Time")
-    day_to_query = selected_day_filter
-    if "Día " in selected_day_filter:
+    if selected_day_filter == all_time_label:
+        day_to_query = "All Time" # Traducimos al valor que espera la BD
+    elif "Día " in selected_day_filter:
         day_to_query = int(selected_day_filter.replace("Día ", ""))
     
     stats = get_player_stats(day_to_query, username)
@@ -181,6 +184,7 @@ else:
             st.subheader(f"Clasificación por Kills ({selected_leaderboard_day})")
             top_df = get_top_players(day_to_query, "kills", limit=20)
             st.dataframe(top_df, use_container_width=True, hide_index=True)
+
 
 
 
