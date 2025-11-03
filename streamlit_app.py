@@ -4,6 +4,7 @@ import pandas as pd
 import os
 
 # --- CONFIGURACIÓN ---
+# Usamos nuestra base de datos 'batallas.db'
 DB_PATH = os.path.join(os.path.dirname(__file__), "batallas.db")
 TIKTOK_PROFILE_URL = "https://tiktok.com/@" # Cambiado a TikTok
 
@@ -61,8 +62,9 @@ def get_top_players(day_filter, stat="kills", limit=10):
     """Obtiene los mejores jugadores según 'kills', 'colisiones', o 'tiempo_s'."""
     conn = get_conn()
     
+    # Mapeamos los nombres amigables a los nombres reales de las columnas
     valid_stats = {"kills": "kills", "colisiones": "colisiones", "tiempo": "tiempo_s"}
-    stat_col = valid_stats.get(stat, "kills")
+    stat_col = valid_stats.get(stat, "kills") # Default a kills por seguridad
 
     if day_filter == "All Time":
         query = f"""
@@ -83,8 +85,9 @@ def get_top_players(day_filter, stat="kills", limit=10):
         """
         params = (day_filter, limit)
     
+    # Usamos Pandas para leer la consulta SQL y devolver un DataFrame
     df = pd.read_sql_query(query, conn, params=params)
-    df.columns = ["Jugador", stat.capitalize()]
+    df.columns = ["Jugador", stat.capitalize()] # Renombra columnas para la tabla
     conn.close()
     return df
 
@@ -92,7 +95,7 @@ def get_top_players(day_filter, stat="kills", limit=10):
 def get_player_stats(day_filter, player):
     """Obtiene las estadísticas de un jugador desde nuestra tabla 'resultados'."""
     conn = get_conn()
-    conn.row_factory = sqlite3.Row
+    conn.row_factory = sqlite3.Row # Para acceder a columnas por nombre
     cursor = conn.cursor()
     
     if day_filter == "All Time":
@@ -109,8 +112,9 @@ def get_player_stats(day_filter, player):
         row = cursor.fetchone()
         conn.close()
         if row and row['total_kills'] is not None:
-            return dict(row)
+            return dict(row) # Devuelve un diccionario con los totales
     else:
+        # Pide los datos de un día específico
         cursor.execute("""
             SELECT kills, ranking, tiempo_s, colisiones, muerto_por
             FROM resultados
@@ -120,36 +124,47 @@ def get_player_stats(day_filter, player):
         conn.close()
         if row:
             stats = dict(row)
-            stats['deaths'] = 1 if stats['ranking'] > 1 else 0
-            stats['nemesis'] = stats['muerto_por']
+            stats['deaths'] = 1 if stats['ranking'] > 1 else 0 # Calcula la muerte
+            stats['nemesis'] = stats['muerto_por'] # Asigna 'muerto_por' a 'nemesis'
             return stats
-    return None
+    return None # Devuelve None si no se encuentra nada
 
 @st.cache_data(ttl=300)
 def get_all_winners():
     """Obtiene todos los ganadores ('usuario') de nuestra tabla 'resultados'."""
     conn = get_conn()
+    # Leemos la consulta SQL directamente a un DataFrame de Pandas
     df = pd.read_sql_query("SELECT dia, usuario FROM resultados WHERE ranking = 1 ORDER BY dia DESC", conn)
-    df.columns = ["Día", "Ganador"]
+    df.columns = ["Día", "Ganador"] # Renombramos para la tabla
     conn.close()
     return df
 
-# (Ya no necesitamos get_wins, está incluido en get_player_stats de "All Time")
+@st.cache_data(ttl=300)
+def get_wins(player):
+    """Cuenta las victorias (ranking = 1) de un jugador."""
+    conn = get_conn()
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM resultados WHERE ranking = 1 AND usuario = ?", (player,))
+    count = cursor.fetchone()[0]
+    conn.close()
+    return count
 
-# ========= APP (Interfaz Traducida y Corregida) ========= #
+# ========= APP (Interfaz Traducida) ========= #
 
 st.set_page_config(page_title="Arena Stats", layout="wide")
+# 1. Título (se mantiene en inglés como pediste)
 st.title("⚔️ fIGth club: fight or unfollow")
 
 # 2. Barra Lateral (Sidebar)
 available_dates = get_available_dates()
-if not available_dates or len(available_dates) <= 1:
+if not available_dates or len(available_dates) <= 1: # Si solo está "All Time"
     st.error("No hay datos en la base de datos. Ejecuta la simulación 'juego.py' al menos una vez.")
     st.stop()
 
+# --- TRADUCCIONES ---
 selected_date_label = "Selecciona el Día"
-all_time_label = "Historial Completo"
-available_dates[0] = all_time_label
+all_time_label = "Historial Completo" # "All Time" en español
+available_dates[0] = all_time_label # Reemplaza el primer elemento
 selected_date = st.sidebar.selectbox(selected_date_label, available_dates)
 
 players = get_players(selected_date)
@@ -163,14 +178,12 @@ if "selected_player" not in st.session_state:
 if st.session_state.selected_player not in players:
     st.sidebar.warning(f"No hay datos para **{st.session_state.selected_player}** en {selected_date}")
 
-# --- ESTA ES LA BARRA DE BÚSQUEDA CON RECOMENDACIONES ---
 selected_player = st.sidebar.selectbox(
-    "Busca tu Jugador", # "Select a player"
+    "Selecciona un Jugador",
     players,
     index=players.index(st.session_state.selected_player) if st.session_state.selected_player in players else 0,
     key="selected_player"
 )
-# ---------------------------------------------------------
 
 # 3. Pestañas (Tabs)
 tab1, tab2 = st.tabs(["🏆 Clasificación", "📊 Estadísticas del Jugador"])
@@ -206,14 +219,16 @@ with tab2:
     else:
         cols = st.columns(2)
         with cols[0]:
+            # Usamos .get() para buscar la clave correcta ("total_kills" o "kills")
             st.metric("🔪 Kills", stats.get("total_kills", stats.get("kills", 0)))
         with cols[1]:
             st.metric("☠️ Muertes", stats.get("total_deaths", stats.get("deaths", 0)))
 
+        # Fila 2
         cols2 = st.columns(2)
         if selected_date == all_time_label:
             with cols2[0]:
-                st.metric("🏅 Victorias", stats.get("total_wins", 0))
+                st.metric("🏅 Victorias", stats.get("total_wins", 0)) # Usamos la clave de "All Time"
             with cols2[1]:
                  st.metric("⏱️ Tiempo Prom.", f"{stats.get('avg_time', 0):.2f} s")
         else:
@@ -230,6 +245,7 @@ with tab2:
                 with cols2[1]:
                     st.metric("⏱️ Tiempo", f"{time_val:.2f} s")
 
+        # Némesis (quién te eliminó)
         if selected_date != all_time_label and stats.get("nemesis"):
             st.markdown("---")
             st.markdown("### Némesis (Te eliminó)")
