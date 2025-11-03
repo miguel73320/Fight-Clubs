@@ -170,7 +170,8 @@ if username_input and username_input != placeholder_label:
             if rank != 1 and stats.get("nemesis"):
                 nemesis = stats["nemesis"]
                 if nemesis and nemesis not in ["Nadie", "GANADOR"]:
-                    st.markdown(f"**Te eliminó:** [{nemesis}]({TIKTIOK_PROFILE_URL}{nemesis})")
+                    st.markdown(f"**Te eliminó:** [{nemesis}]({TIKTOK_PROFILE_URL}{nemesis})")
+                   
 
 # --- PÁGINA PRINCIPAL (Leaderboard del Último Día) ---
 else:
@@ -210,3 +211,4 @@ else:
             st.subheader(f"Clasificación por Kills ({selected_leaderboard_day})")
             top_df = get_top_players(day_to_query, "kills", limit=20)
             st.dataframe(top_df, use_container_width=True, hide_index=True)
+
