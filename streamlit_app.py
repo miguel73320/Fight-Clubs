@@ -26,6 +26,16 @@ def get_available_dates():
     conn.close()
     return ["All Time"] + dates
 
+# <-- NUEVA FUNCIÓN 1 -->
+@st.cache_data(ttl=300)
+def get_all_players():
+    conn = get_conn()
+    cursor = conn.cursor()
+    cursor.execute("SELECT DISTINCT usuario FROM resultados ORDER BY usuario ASC")
+    players = [row[0] for row in cursor.fetchall()]
+    conn.close()
+    return players
+
 @st.cache_data(ttl=300)
 def get_daily_summary(day_num):
     conn = get_conn()
@@ -104,16 +114,32 @@ if not available_dates or len(available_dates) <= 1:
     st.error("No hay datos en la base de datos. Ejecuta la simulación 'juego.py' al menos una vez.")
     st.stop()
 
-# --- BARRA LATERAL (Sidebar) --- # (ARREGLO 1)
+# --- Cargar lista de jugadores --- # <-- CÓDIGO AÑADIDO 2 -->
+all_players = get_all_players()
+if not all_players:
+    st.error("No se han encontrado jugadores en la base de datos.")
+    st.stop()
+
+# --- BARRA LATERAL (Sidebar) --- # <-- CÓDIGO MODIFICADO 3 -->
 st.sidebar.header("Buscar Jugador")
-username_input = st.sidebar.text_input("Ingresa tu nombre de usuario:")
+
+# Definimos un 'placeholder' para el selectbox
+placeholder_label = "Escribe o selecciona tu nombre..."
+player_list_with_placeholder = [placeholder_label] + all_players
+
+# Reemplazamos st.text_input por st.selectbox
+username_input = st.sidebar.selectbox(
+    "Ingresa tu nombre de usuario:", 
+    player_list_with_placeholder
+)
+
 all_time_label = "Historial Completo"
 available_dates_with_all_time = [all_time_label] + [f"Día {d}" for d in available_dates if d != "All Time"]
 selected_day_filter = st.sidebar.selectbox("Filtrar por Día:", available_dates_with_all_time)
 
-# --- LÓGICA DE BÚSQUEDA DE JUGADOR --- # (ARREGLO 2)
-if username_input:
-    username = username_input.strip()
+# --- LÓGICA DE BÚSQUEDA DE JUGADOR --- # <-- CÓDIGO MODIFICADO 4 -->
+if username_input and username_input != placeholder_label:
+    username = username_input # .strip() ya no es necesario
     st.header(f"📊 Estadísticas para [{username}]({TIKTOK_PROFILE_URL}{username})")
     
     # Obtenemos el día seleccionado y lo "traducimos" para la BD
@@ -131,7 +157,7 @@ if username_input:
     else:
         # Mostramos las estadísticas encontradas
         cols_metrics = st.columns(3)
-        if day_to_query == "All Time": # <-- Esta era la línea clave a corregir
+        if day_to_query == "All Time":
             cols_metrics[0].metric("🏆 Victorias Totales", stats.get("total_wins", 0))
             cols_metrics[1].metric("🔪 Kills Totales", stats.get("total_kills", 0))
             cols_metrics[2].metric("☠️ Muertes Totales", stats.get("total_deaths", 0))
@@ -144,7 +170,7 @@ if username_input:
             if rank != 1 and stats.get("nemesis"):
                 nemesis = stats["nemesis"]
                 if nemesis and nemesis not in ["Nadie", "GANADOR"]:
-                    st.markdown(f"**Te eliminó:** [{nemesis}]({TIKTOK_PROFILE_URL}{nemesis})")
+                    st.markdown(f"**Te eliminó:** [{nemesis}]({TIKTIOK_PROFILE_URL}{nemesis})")
 
 # --- PÁGINA PRINCIPAL (Leaderboard del Último Día) ---
 else:
@@ -168,7 +194,6 @@ else:
     else:
         st.write("No hay datos de kills para este día.")
 
-    # --- Expander --- # (ARREGLO 3)
     with st.expander("Ver clasificación de otros días"):
         # Usamos la misma lista 'pretty' que el sidebar para consistencia
         selected_leaderboard_day = st.selectbox("Selecciona un Día para la Clasificación", available_dates_with_all_time)
