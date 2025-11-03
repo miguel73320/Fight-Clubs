@@ -108,8 +108,8 @@ if not available_dates or len(available_dates) <= 1:
 st.sidebar.header("Buscar Jugador")
 username_input = st.sidebar.text_input("Ingresa tu nombre de usuario:")
 if day_to_query == "All Time":
-available_dates_with_all_time = [all_time_label] + [f"Día {d}" for d in available_dates if d != "All Time"]
-selected_day_filter = st.sidebar.selectbox("Filtrar por Día:", available_dates_with_all_time)
+    available_dates_with_all_time = [all_time_label] + [f"Día {d}" for d in available_dates if d != "All Time"]
+    selected_day_filter = st.sidebar.selectbox("Filtrar por Día:", available_dates_with_all_time)
 
 # --- LÓGICA DE BÚSQUEDA DE JUGADOR ---
 if username_input:
@@ -181,5 +181,6 @@ else:
             st.subheader(f"Clasificación por Kills ({selected_leaderboard_day})")
             top_df = get_top_players(day_to_query, "kills", limit=20)
             st.dataframe(top_df, use_container_width=True, hide_index=True)
+
 
 
