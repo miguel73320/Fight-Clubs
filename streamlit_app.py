@@ -24,7 +24,7 @@ def get_available_dates():
     cursor.execute("SELECT DISTINCT dia FROM resultados ORDER BY dia DESC")
     dates = [row[0] for row in cursor.fetchall()]
     conn.close()
-    return ["All Time"] + dates 
+    return ["All Time"] + dates
 
 @st.cache_data(ttl=300)
 def get_daily_summary(day_num):
@@ -104,18 +104,18 @@ if not available_dates or len(available_dates) <= 1:
     st.error("No hay datos en la base de datos. Ejecuta la simulación 'juego.py' al menos una vez.")
     st.stop()
 
-# --- BARRA LATERAL (Sidebar) ---
+# --- BARRA LATERAL (Sidebar) --- # (ARREGLO 1)
 st.sidebar.header("Buscar Jugador")
 username_input = st.sidebar.text_input("Ingresa tu nombre de usuario:")
-if day_to_query == "All Time":
-    available_dates_with_all_time = [all_time_label] + [f"Día {d}" for d in available_dates if d != "All Time"]
-    selected_day_filter = st.sidebar.selectbox("Filtrar por Día:", available_dates_with_all_time)
+all_time_label = "Historial Completo"
+available_dates_with_all_time = [all_time_label] + [f"Día {d}" for d in available_dates if d != "All Time"]
+selected_day_filter = st.sidebar.selectbox("Filtrar por Día:", available_dates_with_all_time)
 
-# --- LÓGICA DE BÚSQUEDA DE JUGADOR ---
+# --- LÓGICA DE BÚSQUEDA DE JUGADOR --- # (ARREGLO 2)
 if username_input:
     username = username_input.strip()
     st.header(f"📊 Estadísticas para [{username}]({TIKTOK_PROFILE_URL}{username})")
-
+    
     # Obtenemos el día seleccionado y lo "traducimos" para la BD
     day_to_query = selected_day_filter # Ej: "Historial Completo" o "Día 5"
     
@@ -131,7 +131,7 @@ if username_input:
     else:
         # Mostramos las estadísticas encontradas
         cols_metrics = st.columns(3)
-        if day_to_query == all_time_label:
+        if day_to_query == "All Time": # <-- Esta era la línea clave a corregir
             cols_metrics[0].metric("🏆 Victorias Totales", stats.get("total_wins", 0))
             cols_metrics[1].metric("🔪 Kills Totales", stats.get("total_kills", 0))
             cols_metrics[2].metric("☠️ Muertes Totales", stats.get("total_deaths", 0))
@@ -168,6 +168,7 @@ else:
     else:
         st.write("No hay datos de kills para este día.")
 
+    # --- Expander --- # (ARREGLO 3)
     with st.expander("Ver clasificación de otros días"):
         # Usamos la misma lista 'pretty' que el sidebar para consistencia
         selected_leaderboard_day = st.selectbox("Selecciona un Día para la Clasificación", available_dates_with_all_time)
@@ -184,7 +185,3 @@ else:
             st.subheader(f"Clasificación por Kills ({selected_leaderboard_day})")
             top_df = get_top_players(day_to_query, "kills", limit=20)
             st.dataframe(top_df, use_container_width=True, hide_index=True)
-
-
-
-
