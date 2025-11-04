@@ -14,8 +14,8 @@ st.markdown("""
 <style>
 /* 1. ESTILO PARA EL BOTÓN DE LA BARRA LATERAL (HAMBURGUESA) */
 [data-testid="stHeader"] button:first-child {
-    background-color: #555555; /* Gris un poco más claro */
-    border: 1px solid #555555; /* Borde del mismo color */
+    background-color: #999999; /* Gris un poco más claro */
+    border: 1px solid #999999; /* Borde del mismo color */
     border-radius: 5px;
     padding: 5px;
 }
@@ -292,6 +292,7 @@ with tab_stats:
     # Si no hay jugador seleccionado, mostramos un aviso
     else:
         st.info("Selecciona un jugador en la barra lateral para ver sus estadísticas.")
+
 
 
 
