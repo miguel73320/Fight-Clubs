@@ -9,30 +9,42 @@ TIKTOK_PROFILE_URL = "https://tiktok.com/@"
 
 st.set_page_config(page_title="Arena Stats", layout="wide")
 
-# --- CUSTOM CSS para el Sidebar en móvil --- # (INTENTO FINAL)
+# --- CUSTOM CSS para el Sidebar en móvil --- # (AJUSTE FINAL DE COLORES Y OTROS BOTONES)
 st.markdown("""
 <style>
-/* v_final: Apuntando al primer *hijo* que sea un botón, dentro de la cabecera */
+/* 1. ESTILO PARA EL BOTÓN DE LA BARRA LATERAL (HAMBURGUESA) */
 [data-testid="stHeader"] button:first-child {
-    background-color: #333333; /* Gris oscuro */
-    border: 1px solid #333333; /* Borde gris oscuro */
+    background-color: #555555; /* Gris un poco más claro */
+    border: 1px solid #555555; /* Borde del mismo color */
     border-radius: 5px;
     padding: 5px;
 }
 
-/* Apuntando al SVG dentro de ESE botón específico */
+/* 2. COLOR DEL ICONO SVG DENTRO DEL BOTÓN DE LA BARRA LATERAL */
 [data-testid="stHeader"] button:first-child svg {
-    color: #FFFFFF; /* Icono blanco */
+    color: #FFFFFF; /* Icono blanco para la hamburguesa */
 }
 
-/* (Seguridad) Nos aseguramos de que los otros botones NO se vean afectados */
+/* 3. RESTAURAR LOS OTROS BOTONES DE LA CABECERA A SU ESTILO NORMAL */
+/* Selecciona todos los botones en la cabecera EXCEPTO el primero (el de la hamburguesa) */
 [data-testid="stHeader"] button:not(:first-child) {
-    background-color: transparent !important;
-    color: inherit !important;
+    background-color: transparent !important; /* Fondo transparente */
+    border: none !important; /* Sin borde */
+    color: inherit !important; /* Heredar color de texto/icono */
+    padding: 5px !important; /* Ajustar padding */
 }
+
+/* Asegurarse de que los SVGs de esos otros botones mantengan su color original */
 [data-testid="stHeader"] button:not(:first-child) svg {
-    color: inherit !important;
+    color: inherit !important; /* Heredar color de icono */
 }
+
+/* 4. AJUSTE PARA EL CONTENEDOR DE LA CABECERA (OPCIONAL, si quieres eliminar la línea divisoria) */
+.stApp > header {
+    background-color: transparent;
+    box-shadow: none; /* Elimina la pequeña sombra/línea de abajo */
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -280,6 +292,7 @@ with tab_stats:
     # Si no hay jugador seleccionado, mostramos un aviso
     else:
         st.info("Selecciona un jugador en la barra lateral para ver sus estadísticas.")
+
 
 
 
