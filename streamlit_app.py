@@ -9,23 +9,29 @@ TIKTOK_PROFILE_URL = "https://tiktok.com/@"
 
 st.set_page_config(page_title="Arena Stats", layout="wide")
 
-# --- CUSTOM CSS para el Sidebar en móvil --- # (INTENTO 3)
+# --- CUSTOM CSS para el Sidebar en móvil --- # (SOLUCIÓN FINAL)
 st.markdown("""
 <style>
-/* v3: Apuntando al primer botón dentro de la cabecera */
-[data-testid="stHeader"] button:first-of-type {
-    background-color: #000000; /* Fondo negro */
-    border: 1px solid #000000; /* Borde negro */
+/* Apunta al botón que controla la expansión del sidebar cuando está colapsado */
+button[data-testid="stSidebarNav"] {
+    background-color: #333333; /* Gris oscuro para el fondo */
+    border: 1px solid #333333; /* Borde del mismo color */
     border-radius: 5px; /* Bordes redondeados */
     padding: 5px; /* Espacio interno */
+    /* Ajuste de margen si es necesario, pero prueba sin él primero */
+    /* margin-left: -5px; */ 
 }
 
-/* Apuntando al icono SVG (las líneas) dentro de ese botón */
-[data-testid="stHeader"] button:first-of-type svg {
+/* Apunta al icono SVG (las líneas) dentro de ese botón */
+button[data-testid="stSidebarNav"] svg {
     color: #FFFFFF; /* Icono blanco */
 }
 </style>
 """, unsafe_allow_html=True)
+
+# ... (El resto de tu código de la app continúa aquí) ...
+st.title("⚔️ fIGth club: fight or unfollow")
+# ... etc ...
 
 
 # ========= FUNCIONES DE BASE DE DATOS (Adaptadas) ========= #
@@ -272,6 +278,7 @@ with tab_stats:
     # Si no hay jugador seleccionado, mostramos un aviso
     else:
         st.info("Selecciona un jugador en la barra lateral para ver sus estadísticas.")
+
 
 
 
