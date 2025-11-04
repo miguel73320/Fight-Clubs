@@ -9,6 +9,25 @@ TIKTOK_PROFILE_URL = "https://tiktok.com/@"
 
 st.set_page_config(page_title="Arena Stats", layout="wide")
 
+# --- CUSTOM CSS para el Sidebar en móvil --- # (AÑADIR ESTE BLOQUE)
+st.markdown("""
+<style>
+/* El botón de hamburguesa en móvil */
+button[data-testid="stSidebarNav"] {
+    background-color: #000000; /* Fondo negro */
+    border-radius: 5px; /* Bordes ligeramente redondeados */
+    padding: 5px; /* Espacio interno */
+    margin-left: -5px; /* Ajuste si es necesario */
+}
+
+/* Las líneas del icono de hamburguesa */
+button[data-testid="stSidebarNav"] svg {
+    color: #FFFFFF; /* Color blanco para las líneas del icono */
+}
+</style>
+""", unsafe_allow_html=True)
+
+
 # ========= FUNCIONES DE BASE DE DATOS (Adaptadas) ========= #
 
 def get_conn():
@@ -26,7 +45,6 @@ def get_available_dates():
     conn.close()
     return ["All Time"] + dates
 
-# <-- NUEVA FUNCIÓN 1 -->
 @st.cache_data(ttl=300)
 def get_all_players():
     conn = get_conn()
@@ -35,6 +53,24 @@ def get_all_players():
     players = [row[0] for row in cursor.fetchall()]
     conn.close()
     return players
+
+@st.cache_data(ttl=300)
+def get_all_time_winners():
+    conn = get_conn()
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT dia, usuario
+        FROM resultados 
+        WHERE ranking = 1 
+        ORDER BY dia DESC
+    """)
+    rows = cursor.fetchall()
+    conn.close()
+    if rows:
+        df = pd.DataFrame(rows, columns=["Día", "Ganador"])
+        return df
+    return pd.DataFrame(columns=["Día", "Ganador"])
 
 @st.cache_data(ttl=300)
 def get_daily_summary(day_num):
@@ -52,7 +88,7 @@ def get_daily_summary(day_num):
     }
 
 @st.cache_data(ttl=300)
-def get_top_players(day_filter, stat="kills", limit=20):
+def get_top_players(day_filter, stat="kills", limit=10):
     conn = get_conn()
     valid_stats = {"kills": "kills", "colisiones": "colisiones", "tiempo": "tiempo_s"}
     stat_col = valid_stats.get(stat, "kills")
@@ -104,24 +140,6 @@ def get_player_stats(day_filter, player):
             stats['nemesis'] = stats['muerto_por']
             return stats
     return None
-
-@st.cache_data(ttl=300)
-def get_all_time_winners():
-    conn = get_conn()
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT dia, usuario
-        FROM resultados 
-        WHERE ranking = 1 
-        ORDER BY dia DESC
-    """)
-    rows = cursor.fetchall()
-    conn.close()
-    if rows:
-        df = pd.DataFrame(rows, columns=["Día", "Ganador"])
-        return df
-    return pd.DataFrame(columns=["Día", "Ganador"])
 
 # ========= APP (Interfaz Rediseñada con Pestañas) ========= #
 
@@ -254,3 +272,4 @@ with tab_stats:
     # Si no hay jugador seleccionado, mostramos un aviso
     else:
         st.info("Selecciona un jugador en la barra lateral para ver sus estadísticas.")
+
