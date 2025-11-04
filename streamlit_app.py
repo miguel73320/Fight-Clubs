@@ -9,26 +9,32 @@ TIKTOK_PROFILE_URL = "https://tiktok.com/@"
 
 st.set_page_config(page_title="Arena Stats", layout="wide")
 
-# --- CUSTOM CSS para el Sidebar en móvil --- # (SOLUCIÓN FINAL)
+# --- CUSTOM CSS para el Sidebar en móvil --- # (INTENTO FINAL)
 st.markdown("""
 <style>
-/* Apunta al botón que controla la expansión del sidebar cuando está colapsado */
-button[data-testid="stSidebarNav"] {
-    background-color: #333333; /* Gris oscuro para el fondo */
-    border: 1px solid #333333; /* Borde del mismo color */
-    border-radius: 5px; /* Bordes redondeados */
-    padding: 5px; /* Espacio interno */
-    /* Ajuste de margen si es necesario, pero prueba sin él primero */
-    /* margin-left: -5px; */ 
+/* v_final: Apuntando al primer *hijo* que sea un botón, dentro de la cabecera */
+[data-testid="stHeader"] button:first-child {
+    background-color: #333333; /* Gris oscuro */
+    border: 1px solid #333333; /* Borde gris oscuro */
+    border-radius: 5px;
+    padding: 5px;
 }
 
-/* Apunta al icono SVG (las líneas) dentro de ese botón */
-button[data-testid="stSidebarNav"] svg {
+/* Apuntando al SVG dentro de ESE botón específico */
+[data-testid="stHeader"] button:first-child svg {
     color: #FFFFFF; /* Icono blanco */
+}
+
+/* (Seguridad) Nos aseguramos de que los otros botones NO se vean afectados */
+[data-testid="stHeader"] button:not(:first-child) {
+    background-color: transparent !important;
+    color: inherit !important;
+}
+[data-testid="stHeader"] button:not(:first-child) svg {
+    color: inherit !important;
 }
 </style>
 """, unsafe_allow_html=True)
-
 
 # ========= FUNCIONES DE BASE DE DATOS (Adaptadas) ========= #
 
@@ -274,6 +280,7 @@ with tab_stats:
     # Si no hay jugador seleccionado, mostramos un aviso
     else:
         st.info("Selecciona un jugador en la barra lateral para ver sus estadísticas.")
+
 
 
 
