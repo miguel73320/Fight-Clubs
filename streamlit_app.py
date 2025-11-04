@@ -9,25 +9,20 @@ TIKTOK_PROFILE_URL = "https://tiktok.com/@"
 
 st.set_page_config(page_title="Arena Stats", layout="wide")
 
-# --- CUSTOM CSS para el Sidebar en móvil --- # (VERSIÓN 2)
+# --- CUSTOM CSS para el Sidebar en móvil --- # (INTENTO 3)
 st.markdown("""
 <style>
-/* Targeting the button that opens the sidebar.
-  This class is more likely to be stable than the data-testid.
-*/
-button[kind="header-hamburger"] {
+/* v3: Apuntando al primer botón dentro de la cabecera */
+[data-testid="stHeader"] button:first-of-type {
     background-color: #000000; /* Fondo negro */
-    border: 2px solid #000000; /* Borde negro para consistencia */
+    border: 1px solid #000000; /* Borde negro */
     border-radius: 5px; /* Bordes redondeados */
-    padding: 2px 5px; /* Ajuste de padding */
+    padding: 5px; /* Espacio interno */
 }
 
-/* Targeting the three lines (spans) inside the button */
-button[kind="header-hamburger"] > span {
-    color: #FFFFFF; /* Color blanco para las líneas del icono */
-    background-color: #FFFFFF; /* Forzar el color de las líneas */
-    height: 3px !important; /* Asegurar que las líneas sean visibles */
-    border-radius: 2px; /* Redondear las líneas */
+/* Apuntando al icono SVG (las líneas) dentro de ese botón */
+[data-testid="stHeader"] button:first-of-type svg {
+    color: #FFFFFF; /* Icono blanco */
 }
 </style>
 """, unsafe_allow_html=True)
@@ -277,5 +272,6 @@ with tab_stats:
     # Si no hay jugador seleccionado, mostramos un aviso
     else:
         st.info("Selecciona un jugador en la barra lateral para ver sus estadísticas.")
+
 
 
