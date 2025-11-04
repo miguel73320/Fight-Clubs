@@ -163,7 +163,7 @@ def get_player_stats(day_filter, player):
 
 # ========= APP (Interfaz Rediseñada con Pestañas) ========= #
 
-st.title("⚔️ fIGth club: fight or unfollow")
+st.title("⚔️ fIGTH club: fight or unfollow")
 
 available_dates = get_available_dates()
 if not available_dates or len(available_dates) <= 1:
@@ -292,6 +292,7 @@ with tab_stats:
     # Si no hay jugador seleccionado, mostramos un aviso
     else:
         st.info("Selecciona un jugador en la barra lateral para ver sus estadísticas.")
+
 
 
 
