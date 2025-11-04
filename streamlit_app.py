@@ -29,10 +29,6 @@ button[data-testid="stSidebarNav"] svg {
 </style>
 """, unsafe_allow_html=True)
 
-# ... (El resto de tu código de la app continúa aquí) ...
-st.title("⚔️ fIGth club: fight or unfollow")
-# ... etc ...
-
 
 # ========= FUNCIONES DE BASE DE DATOS (Adaptadas) ========= #
 
@@ -278,6 +274,7 @@ with tab_stats:
     # Si no hay jugador seleccionado, mostramos un aviso
     else:
         st.info("Selecciona un jugador en la barra lateral para ver sus estadísticas.")
+
 
 
 
