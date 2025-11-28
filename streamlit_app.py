@@ -346,3 +346,22 @@ with tab_stats:
     else:
         st.info("Selecciona un jugador en la barra lateral para ver sus estadísticas.")
 
+# --- ZONA DE ADMINISTRADOR (Para descargar los nuevos registros) ---
+st.sidebar.markdown("---")
+with st.sidebar.expander("🔐 Zona Admin"):
+    clave = st.text_input("Clave de acceso:", type="password")
+    if clave == "miguel123":  # <--- Pon la contraseña que tú quieras
+        archivo_nuevos = os.path.join("Seguidores_pagina", "nuevos_aspirantes.json")
+        if os.path.exists(archivo_nuevos):
+            with open(archivo_nuevos, "r", encoding="utf-8") as f:
+                datos_nuevos = f.read()
+            
+            st.download_button(
+                label="📥 Descargar Nuevos Aspirantes (JSON)",
+                data=datos_nuevos,
+                file_name="nuevos_aspirantes.json",
+                mime="application/json"
+            )
+            st.success("Archivo encontrado.")
+        else:
+            st.warning("No hay nuevos registros todavía.")
