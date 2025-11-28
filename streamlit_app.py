@@ -2,11 +2,12 @@ import streamlit as st
 import sqlite3
 import pandas as pd
 import os
+import json  # <--- NUEVO: Necesario para guardar los aspirantes
+from datetime import datetime # <--- NUEVO: Para guardar la fecha de registro
 
-# --- CONFIGURACIÓN --- # <-- MODIFICADO
-# Apunta a la nueva base de datos del proyecto
+# --- CONFIGURACIÓN --- 
 DB_PATH = os.path.join(os.path.dirname(__file__), "data/daily_stats.db")
-TIKTOK_PROFILE_URL = "https://tiktok.com/@" # Puedes cambiar esto por Instagram si quieres
+TIKTOK_PROFILE_URL = "https://tiktok.com/@" 
 
 st.set_page_config(page_title="Arena Stats", layout="wide")
 
@@ -42,65 +43,85 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ========= FUNCIONES DE BASE DE DATOS (Adaptadas) ========= #
+# ========= FUNCIONES NUEVAS (REGISTRO) ========= #
+# <--- NUEVO: Función para guardar en la carpeta Seguidores_pagina
+def guardar_nuevo_jugador(username):
+    carpeta = "Seguidores_pagina"
+    archivo = os.path.join(carpeta, "nuevos_aspirantes.json")
+    
+    # Asegurarnos de que la carpeta exista
+    if not os.path.exists(carpeta):
+        os.makedirs(carpeta)
+        
+    lista_aspirantes = []
+    
+    # Si el archivo ya existe, leemos lo que tiene
+    if os.path.exists(archivo):
+        with open(archivo, "r", encoding="utf-8") as f:
+            try:
+                lista_aspirantes = json.load(f)
+            except json.JSONDecodeError:
+                lista_aspirantes = []
+    
+    # Chequeo rápido para no repetir en la lista de espera
+    nombres_existentes = [u["usuario"] for u in lista_aspirantes]
+    
+    if username not in nombres_existentes:
+        nuevo_registro = {
+            "usuario": username,
+            "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        lista_aspirantes.append(nuevo_registro)
+        
+        with open(archivo, "w", encoding="utf-8") as f:
+            json.dump(lista_aspirantes, f, indent=4)
+        return True
+    return False
 
-# <-- MODIFICADO: get_conn -->
-# Ahora busca la nueva DB
+# ========= FUNCIONES DE BASE DE DATOS (Originales) ========= #
+
 def get_conn():
     if not os.path.exists(DB_PATH):
         st.error("Error: No se encuentra el archivo 'daily_stats.db'. Ejecuta log_manager.py primero.")
         st.stop()
     return sqlite3.connect(DB_PATH)
 
-# <-- MODIFICADO: get_available_dates -->
-# Lee la tabla 'daily_summary' que usa fechas de texto (ej: "2025-11-04")
 @st.cache_data(ttl=300)
 def get_available_dates():
     conn = get_conn()
     cursor = conn.cursor()
-    # La nueva tabla 'daily_summary' usa 'date' como PK
     cursor.execute("SELECT date FROM daily_summary ORDER BY date DESC")
-    # Las fechas ya no son números, son texto
     dates = [row[0] for row in cursor.fetchall()]
     conn.close()
     return ["All Time"] + dates 
 
-# <-- MODIFICADO: get_all_players -->
-# Lee la tabla 'player_stats'
 @st.cache_data(ttl=300)
 def get_all_players():
     conn = get_conn()
     cursor = conn.cursor()
-    # La nueva tabla usa 'player'
     cursor.execute("SELECT DISTINCT player FROM player_stats ORDER BY player ASC")
     players = [row[0] for row in cursor.fetchall()]
     conn.close()
     return players
 
-# <-- MODIFICADO: get_all_time_winners -->
-# Lee la tabla 'daily_summary'
 @st.cache_data(ttl=300)
 def get_all_time_winners():
     conn = get_conn()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    # La nueva tabla 'daily_summary' tiene al ganador
     cursor.execute("SELECT date, winner FROM daily_summary ORDER BY date DESC")
     rows = cursor.fetchall()
     conn.close()
     if rows:
-        df = pd.DataFrame(rows, columns=["Fecha", "Ganador"]) # Cambiado 'Día' a 'Fecha'
+        df = pd.DataFrame(rows, columns=["Fecha", "Ganador"])
         return df
     return pd.DataFrame(columns=["Fecha", "Ganador"])
 
-# <-- MODIFICADO: get_daily_summary -->
-# Lee la tabla 'daily_summary'
 @st.cache_data(ttl=300)
-def get_daily_summary(date_str): # Renombrado de day_num a date_str
+def get_daily_summary(date_str):
     conn = get_conn()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    # Esta tabla ya tiene los datos pre-calculados
     cursor.execute("SELECT num_players, winner FROM daily_summary WHERE date = ?", (date_str,))
     row = cursor.fetchone()
     conn.close()
@@ -108,12 +129,9 @@ def get_daily_summary(date_str): # Renombrado de day_num a date_str
         return dict(row)
     return {"num_players": 0, "winner": "N/A"}
 
-# <-- MODIFICADO: get_top_players -->
-# Lee la tabla 'player_stats'
 @st.cache_data(ttl=300)
 def get_top_players(day_filter, stat="kills", limit=10):
     conn = get_conn()
-    # La nueva DB solo soporta 'kills' y 'deaths' para esta query
     valid_stats = {"kills": "kills", "deaths": "deaths"} 
     stat_col = valid_stats.get(stat, "kills")
     
@@ -135,8 +153,6 @@ def get_top_players(day_filter, stat="kills", limit=10):
     conn.close()
     return df
 
-# <-- MODIFICADO: get_player_stats (La función más cambiada) -->
-# Ahora lee de TRES tablas (player_stats, ranking, daily_summary)
 @st.cache_data(ttl=300)
 def get_player_stats(day_filter, player):
     conn = get_conn()
@@ -144,7 +160,6 @@ def get_player_stats(day_filter, player):
     cursor = conn.cursor()
     
     if day_filter == "All Time":
-        # Query 1: Obtener kills y muertes de player_stats
         cursor.execute("""
             SELECT 
                 SUM(kills) as total_kills,
@@ -153,7 +168,6 @@ def get_player_stats(day_filter, player):
         """, (player,))
         stats_row = cursor.fetchone()
         
-        # Query 2: Obtener victorias de daily_summary
         cursor.execute("SELECT COUNT(*) as total_wins FROM daily_summary WHERE winner = ?", (player,))
         wins_row = cursor.fetchone()
         
@@ -165,7 +179,6 @@ def get_player_stats(day_filter, player):
             return stats
         return None
     else:
-        # Query para un día específico, uniendo 'player_stats' y 'ranking'
         cursor.execute("""
             SELECT 
                 ps.kills, ps.deaths, ps.nemesis,
@@ -179,16 +192,47 @@ def get_player_stats(day_filter, player):
         
         if row:
             stats = dict(row)
-            # Renombramos las claves para que coincidan con el UI antiguo
             stats['ranking'] = stats.pop('rank')
             stats['tiempo_s'] = stats.pop('time')
-            # 'nemesis' ya se llama igual que lo que esperábamos ('muerto_por')
             return stats
     return None
 
-# ========= APP (Interfaz Rediseñada con Pestañas) ========= #
+# ========= APP ========= #
 
 st.title("⚔️ FIGTH club: fight or unfollow")
+
+# <--- NUEVO: ZONA DE REGISTRO (LA CAJA VERDE) --->
+# Se inserta aquí para que aparezca justo debajo del título
+with st.expander("🟩 ¿NO ESTÁS EN LA LISTA? ¡INSCRÍBETE AQUÍ! 🟩", expanded=False):
+    st.markdown("""
+        <div style='background-color: #d4edda; padding: 10px; border-radius: 5px; border: 1px solid #c3e6cb; color: #155724; margin-bottom: 10px;'>
+            <strong>Instrucciones:</strong> Escribe tu usuario de TikTok exacto (sin el @) y presiona el botón.
+            Quedarás en la lista de espera para la próxima batalla.
+        </div>
+    """, unsafe_allow_html=True)
+    
+    with st.form("registro_form", clear_on_submit=True):
+        col_input, col_btn = st.columns([3, 1])
+        with col_input:
+            nuevo_usuario = st.text_input("Tu Usuario de TikTok:", placeholder="Ej: miguelito_petroleo")
+        with col_btn:
+            st.write("") 
+            st.write("")
+            enviar = st.form_submit_button("✅ Registrarme")
+            
+        if enviar:
+            if nuevo_usuario:
+                usuario_limpio = nuevo_usuario.replace("@", "").strip()
+                # Llamamos a la función nueva que guarda en JSON
+                guardado = guardar_nuevo_jugador(usuario_limpio)
+                
+                if guardado:
+                    st.success(f"¡Listo! **{usuario_limpio}** ha sido guardado en la carpeta de nuevos aspirantes.")
+                else:
+                    st.warning(f"El usuario **{usuario_limpio}** ya estaba en la lista de espera.")
+            else:
+                st.error("Por favor escribe un nombre de usuario.")
+# <--- FIN DE LA ZONA NUEVA --->
 
 available_dates = get_available_dates()
 if not available_dates or len(available_dates) <= 1:
@@ -206,22 +250,18 @@ placeholder_label = "Escribe o selecciona tu nombre..."
 
 st.sidebar.header("Filtros de Búsqueda")
 
-# <-- MODIFICADO: Filtro de Fecha -->
-# Ya no añade "Día ", solo usa las fechas de texto de la DB
 available_dates_with_all_time = [all_time_label] + [d for d in available_dates if d != "All Time"]
 selected_day_filter = st.sidebar.selectbox(
     "Seleccionar Fecha:", 
     available_dates_with_all_time
 )
 
-# Filtro de Jugador
 player_list_with_placeholder = [placeholder_label] + all_players
 username_input = st.sidebar.selectbox(
     "Buscar Jugador:", 
     player_list_with_placeholder
 )
 
-# Filtro de Estadísticas del Leaderboard
 st.sidebar.markdown("---")
 st.sidebar.subheader("Ver Leaderboard por:")
 stat_to_show = st.sidebar.radio(
@@ -230,11 +270,9 @@ stat_to_show = st.sidebar.radio(
     label_visibility="collapsed"
 )
 
-# <-- MODIFICADO: LÓGICA DE TRADUCCIÓN DE FECHA -->
-# Ahora es más simple: solo revisa si es "All Time"
 day_to_query = "All Time"
 if selected_day_filter != all_time_label:
-    day_to_query = selected_day_filter # Ej: "2025-11-04"
+    day_to_query = selected_day_filter
 
 # --- PESTAÑAS PRINCIPALES ---
 tab_leaderboard, tab_stats = st.tabs(["🏆 Leaderboard", "📊 Estadísticas de Jugador"])
@@ -265,7 +303,6 @@ with tab_leaderboard:
             summary = get_daily_summary(day_to_query)
             winner_name = summary.get('winner', 'N/A')
             if winner_name != 'N/A':
-                # El UI ahora muestra la fecha completa, ej: "Ganador del Día 2025-11-04"
                 st.metric(f"Ganador del Día {day_to_query}", winner_name, "👑")
             else:
                 st.warning(f"No se encontró un ganador para el Día {day_to_query}.")
@@ -291,23 +328,21 @@ with tab_stats:
             
             else:
                 rank = stats.get("ranking")
-                # El nuevo 'ranking' del ganador es 0, no 1
                 rank_display = "1º 👑" if rank == 0 else str(rank)
                 cols_metrics[0].metric("📊 Ranking", rank_display)
                 cols_metrics[1].metric("🔪 Kills", stats.get("kills", 0))
                 
-                # Manejamos el tiempo (puede ser None)
                 tiempo = stats.get('tiempo_s')
                 if tiempo is not None:
                     cols_metrics[2].metric("⏱️ Tiempo", f"{tiempo:.2f} s")
                 else:
                     cols_metrics[2].metric("⏱️ Tiempo", "N/A")
                 
-                # El rank 0 es el ganador
                 if rank is not None and rank != 0 and stats.get("nemesis"):
                     nemesis = stats["nemesis"]
-                    if nemesis: # El nuevo 'nemesis' puede ser None
+                    if nemesis:
                         st.markdown(f"**Te eliminó:** [{nemesis}]({TIKTOK_PROFILE_URL}{nemesis})")
     
     else:
         st.info("Selecciona un jugador en la barra lateral para ver sus estadísticas.")
+
