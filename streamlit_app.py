@@ -350,7 +350,8 @@ with tab_stats:
 st.sidebar.markdown("---")
 with st.sidebar.expander("🔐 Zona Admin"):
     clave = st.text_input("Clave de acceso:", type="password")
-    if clave == "miguel123":  # <--- Pon la contraseña que tú quieras
+    # Busca la clave en los secretos de configuración
+    if clave == st.secrets["ADMIN_PASSWORD"]:
         archivo_nuevos = os.path.join("Seguidores_pagina", "nuevos_aspirantes.json")
         if os.path.exists(archivo_nuevos):
             with open(archivo_nuevos, "r", encoding="utf-8") as f:
@@ -365,3 +366,4 @@ with st.sidebar.expander("🔐 Zona Admin"):
             st.success("Archivo encontrado.")
         else:
             st.warning("No hay nuevos registros todavía.")
+
